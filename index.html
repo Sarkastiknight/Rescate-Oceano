@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rescate del Océano</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <header>
+        <h1>🌊 Rescate del Océano</h1>
+        <div class="estadisticas">
+            <span>🐟 Peces: <b id="rescatados">0</b></span>
+            <span>🗑️ Basura retirada: <b id="basura">0</b></span>
+            <span>⭐ Puntos: <b id="puntos">0</b></span>
+        </div>
+    </header>
+
+    <div id="oceano">
+        <div id="zonaRescate">🏥 ZONA SEGURA</div>
+        <div id="mensaje"></div>
+    </div>
+
+    <div id="inicio">
+        <h2>🌊 Rescate del Océano 🐠</h2>
+        <p>
+            Ayuda a los peces atrapados por la basura.
+            Haz clic en la basura para retirarla y liberar a la fauna marina.
+        </p>
+        <button onclick="comenzarJuego()">🚀 Comenzar</button>
+    </div>
+
+    <!-- CUADRO DE INFORMACIÓN Y CONCIENCIA MARINA -->
+    <div id="infoEspecial" style="display: none;">
+        <div class="infoContenido">
+            <button id="cerrarInfo" onclick="cerrarInformacion()">✕</button>
+            <div id="infoEmoji">🐬</div>
+            <h2 id="infoTitulo">Delfín</h2>
+            <p id="infoTexto">Información del animal.</p>
+            <div id="infoDato" class="alertaConciencia"></div>
+            <button class="botonContinuar" onclick="cerrarInformacion()">🌊 Continuar jugando</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
