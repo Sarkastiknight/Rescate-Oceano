@@ -1,10 +1,14 @@
 // ==========================================
-// RESCATE DEL OCÉANO: ECOSISTEMA VECTORIAL
+// RESCATE DEL OCÉANO: ECOSISTEMA CON WEBGL & VECTOR ENGINE
 // ==========================================
 
 const oceano = document.getElementById("oceano");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext('2d');
+
+const canvasShader = document.getElementById("canvasShader");
+const gl = canvasShader ? (canvasShader.getContext("webgl") || canvasShader.getContext("experimental-webgl")) : null;
+
 const toggleBtn = document.getElementById('autoPlanctonToggle');
 const modeLabel = document.getElementById('mode-label');
 
@@ -15,40 +19,125 @@ let pecesRescatados = 0;
 let basuraRetirada = 0;
 let puntos = 0;
 
-// Listas de agentes en la simulación
 let peces = [];
 let tiburones = [];
 let planctons = [];
+let basuras = [];
+let ductos = [];
+let buzos = [];
 
-toggleBtn.addEventListener('change', (e) => {
-    autoGeneracion = e.target.checked;
-    modeLabel.innerText = autoGeneracion ? "Auto" : "Manual";
-    modeLabel.style.color = autoGeneracion ? "#00c8ff" : "#ff9696";
-});
+if (toggleBtn) {
+    toggleBtn.addEventListener('change', (e) => {
+        autoGeneracion = e.target.checked;
+        modeLabel.innerText = autoGeneracion ? "Auto" : "Manual";
+        modeLabel.style.color = autoGeneracion ? "#00c8ff" : "#ff9696";
+    });
+}
 
 function ajustarCanvas() {
-    canvas.width = oceano.clientWidth;
-    canvas.height = oceano.clientHeight;
+    const w = window.innerWidth;
+    const h = window.innerHeight - 55;
+
+    canvas.width = w;
+    canvas.height = h;
+    
+    if (canvasShader) {
+        canvasShader.width = w;
+        canvasShader.height = h;
+        if (gl) gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+    }
 }
+
 window.addEventListener('resize', () => {
     ajustarCanvas();
     generarFondoCorales();
 });
+
+// ==========================================
+// MOTOR SHADER WEBGL (RAYOS DE LUZ SUBMARINOS)
+// ==========================================
+
+let shaderProgram, positionAttributeLocation, resolutionUniformLocation, timeUniformLocation;
+
+function initWebGL() {
+    if (!gl) return;
+
+    const vertexShaderSource = `
+        attribute vec2 a_position;
+        void main() {
+            gl_Position = vec4(a_position, 0.0, 1.0);
+        }
+    `;
+
+    const fragmentShaderSource = `
+        precision mediump float;
+        uniform vec2 u_resolution;
+        uniform float u_time;
+
+        void main() {
+            vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+            
+            vec3 surfaceColor = vec3(0.02, 0.45, 0.65); 
+            vec3 abyssColor = vec3(0.01, 0.04, 0.12);   
+            vec3 baseColor = mix(abyssColor, surfaceColor, 1.0 - uv.y);
+
+            float ray = sin((uv.x + uv.y * 0.5 + u_time * 0.04) * 6.0) * 0.5 + 0.5;
+            ray *= cos((uv.x * 2.0 - u_time * 0.02) * 4.0) * 0.5 + 0.5;
+            
+            float intensity = ray * (uv.y * 0.7);
+            vec3 finalColor = baseColor + vec3(0.08, 0.25, 0.35) * intensity;
+
+            gl_FragColor = vec4(finalColor, 1.0);
+        }
+    `;
+
+    const vShader = gl.createShader(gl.VERTEX_SHADER);
+    gl.shaderSource(vShader, vertexShaderSource);
+    gl.compileShader(vShader);
+
+    const fShader = gl.createShader(gl.FRAGMENT_SHADER);
+    gl.shaderSource(fShader, fragmentShaderSource);
+    gl.compileShader(fShader);
+
+    shaderProgram = gl.createProgram();
+    gl.attachShader(shaderProgram, vShader);
+    gl.attachShader(shaderProgram, fShader);
+    gl.linkProgram(shaderProgram);
+
+    positionAttributeLocation = gl.getAttribLocation(shaderProgram, "a_position");
+    resolutionUniformLocation = gl.getUniformLocation(shaderProgram, "u_resolution");
+    timeUniformLocation = gl.getUniformLocation(shaderProgram, "u_time");
+}
+
+function renderShader(time) {
+    if (!gl || !shaderProgram) return;
+    
+    gl.useProgram(shaderProgram);
+    gl.enableVertexAttribArray(positionAttributeLocation);
+    
+    const positionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+        -1, -1,  1, -1, -1,  1,
+        -1,  1,  1, -1,  1,  1,
+    ]), gl.STATIC_DRAW);
+
+    gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+    gl.uniform2f(resolutionUniformLocation, canvasShader.width, canvasShader.height);
+    gl.uniform1f(timeUniformLocation, time * 0.001);
+
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+}
 
 // --- FONDO FRACTAL (Corales recursivos) ---
 const fondoCanvas = document.createElement('canvas');
 const fCtx = fondoCanvas.getContext('2d');
 
 function generarFondoCorales() {
-    fondoCanvas.width = oceano.clientWidth;
-    fondoCanvas.height = oceano.clientHeight;
+    fondoCanvas.width = canvas.width;
+    fondoCanvas.height = canvas.height;
     
-    let gradient = fCtx.createLinearGradient(0, 0, 0, fondoCanvas.height);
-    gradient.addColorStop(0, '#020617');
-    gradient.addColorStop(0.6, '#051126');
-    gradient.addColorStop(1, '#020914');
-    fCtx.fillStyle = gradient;
-    fCtx.fillRect(0, 0, fondoCanvas.width, fondoCanvas.height);
+    fCtx.clearRect(0, 0, fondoCanvas.width, fondoCanvas.height);
 
     function dibujarCoral(x, y, longitud, angulo, profundidad) {
         if (profundidad === 0) return;
@@ -128,10 +217,119 @@ class Plancton {
         if (this.y < 0) this.y = canvas.height;
     }
     dibujar() {
-        ctx.fillStyle = '#96ff96';
+        ctx.fillStyle = '#64ffda';
         ctx.beginPath();
-        ctx.arc(this.x, this.y, 2, 0, Math.PI * 2);
+        ctx.arc(this.x, this.y, 2.5, 0, Math.PI * 2);
         ctx.fill();
+    }
+}
+
+class BasuraVectorial {
+    constructor(x, y) {
+        this.x = x || Math.random() * (canvas.width - 60) + 30;
+        this.y = y || Math.random() * (canvas.height - 180) + 40;
+        this.tipo = Math.floor(Math.random() * 3);
+        this.wobble = Math.random() * Math.PI;
+    }
+    actualizar() {
+        this.wobble += 0.03;
+        this.y += Math.sin(this.wobble) * 0.15;
+    }
+    dibujar() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        if (this.tipo === 0) {
+            ctx.fillStyle = 'rgba(220, 240, 255, 0.8)';
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1;
+            ctx.fillRect(-10, -12, 20, 24);
+            ctx.strokeRect(-10, -12, 20, 24);
+        } else if (this.tipo === 1) {
+            ctx.fillStyle = 'rgba(100, 220, 200, 0.85)';
+            ctx.fillRect(-5, -15, 10, 24);
+            ctx.fillStyle = '#ff3333';
+            ctx.fillRect(-3, -19, 6, 4);
+        } else {
+            ctx.strokeStyle = '#e0a96d';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(-12, -12, 24, 24);
+            ctx.beginPath();
+            ctx.moveTo(-12, -12); ctx.lineTo(12, 12);
+            ctx.moveTo(12, -12); ctx.lineTo(-12, 12);
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+}
+
+class DuctoDañado {
+    constructor(x) {
+        this.x = x;
+        this.y = canvas.height - 35;
+        this.clicsRestantes = 3;
+    }
+    dibujar() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.fillStyle = '#495057';
+        ctx.fillRect(-18, -10, 36, 20);
+        ctx.fillStyle = '#adb5bd';
+        ctx.fillRect(-20, -15, 40, 6);
+        ctx.font = "20px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("🛢️", 0, -18);
+        
+        ctx.fillStyle = '#ff4d4d';
+        ctx.font = "bold 11px sans-serif";
+        ctx.fillText(`Clics: ${this.clicsRestantes}`, 0, 18);
+        ctx.restore();
+    }
+}
+
+class BuzoVectorial {
+    constructor(x, y) {
+        this.x = x || Math.random() * canvas.width;
+        this.y = y || Math.random() * (canvas.height - 100);
+        this.vx = (Math.random() - 0.5) * 1.5;
+        this.vy = (Math.random() - 0.5) * 1.5;
+        this.maxSpeed = 1.8;
+    }
+
+    actualizar(tiburonesLista) {
+        this.x += this.vx;
+        this.y += this.vy;
+
+        if (this.x < 30) this.vx += 0.1;
+        if (this.x > canvas.width - 30) this.vx -= 0.1;
+        if (this.y < 30) this.vy += 0.1;
+        if (this.y > canvas.height - 50) this.vy -= 0.1;
+
+        if (tiburonesLista.length > 0) {
+            let tiburonCercano = tiburonesLista.reduce((prev, curr) => 
+                Math.hypot(this.x - curr.x, this.y - curr.y) < Math.hypot(this.x - prev.x, this.y - prev.y) ? curr : prev
+            );
+            let dist = Math.hypot(this.x - tiburonCercano.x, this.y - tiburonCercano.y);
+            if (dist < 300) {
+                this.vx += (tiburonCercano.x - this.x) / dist * 0.12;
+                this.vy += (tiburonCercano.y - this.y) / dist * 0.12;
+            }
+        }
+
+        let speed = Math.hypot(this.vx, this.vy);
+        if (speed > this.maxSpeed) {
+            this.vx = (this.vx / speed) * this.maxSpeed;
+            this.vy = (this.vy / speed) * this.maxSpeed;
+        }
+    }
+
+    dibujar() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.font = "22px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("🤿", 0, 0);
+        ctx.restore();
     }
 }
 
@@ -142,13 +340,11 @@ class PezVectorial {
         this.vx = (Math.random() - 0.5) * 2.5;
         this.vy = (Math.random() - 0.5) * 2.5;
         this.maxSpeed = 2.8;
-        this.energia = 100;
         this.tailPhase = Math.random() * Math.PI * 2;
         this.hue = 170 + Math.random() * 40;
         this.scale = 0.85 + Math.random() * 0.3;
         this.atrapado = false;
         
-        // 20% de probabilidad de ser pez especial
         if (Math.random() < 0.20) {
             this.especial = true;
             this.info = animalesEspeciales[Math.floor(Math.random() * animalesEspeciales.length)];
@@ -158,18 +354,16 @@ class PezVectorial {
     }
 
     actualizar(pecesLista, planctonLista, tiburonesLista) {
-        if (this.atrapado) return; // Si está atrapado en basura, no se mueve
+        if (this.atrapado) return;
 
         this.x += this.vx;
         this.y += this.vy;
-        this.energia -= 0.03;
 
         if (this.x < 30) this.vx += 0.2;
         if (this.x > canvas.width - 30) this.vx -= 0.2;
         if (this.y < 30) this.vy += 0.2;
         if (this.y > canvas.height - 50) this.vy -= 0.2;
 
-        // Comportamiento Boids (Separación)
         let sepX = 0, sepY = 0, count = 0;
         for (let otro of pecesLista) {
             let dist = Math.hypot(this.x - otro.x, this.y - otro.y);
@@ -184,7 +378,6 @@ class PezVectorial {
             this.vy += sepY * 0.4;
         }
 
-        // Huida de tiburones
         for (let tiburon of tiburonesLista) {
             let distTiburon = Math.hypot(this.x - tiburon.x, this.y - tiburon.y);
             if (distTiburon < 160) {
@@ -193,7 +386,6 @@ class PezVectorial {
             }
         }
 
-        // Buscar Plancton
         if (planctonLista.length > 0) {
             let cercano = planctonLista.reduce((prev, curr) => 
                 Math.hypot(this.x - curr.x, this.y - curr.y) < Math.hypot(this.x - prev.x, this.y - prev.y) ? curr : prev
@@ -204,7 +396,6 @@ class PezVectorial {
                 this.vy += (cercano.y - this.y) / distCercano * 0.18;
 
                 if (distCercano < 12) {
-                    this.energia = Math.min(150, this.energia + 40);
                     let index = planctonLista.indexOf(cercano);
                     if (index > -1) planctonLista.splice(index, 1);
                 }
@@ -229,46 +420,42 @@ class PezVectorial {
         ctx.scale(this.scale, this.scale);
 
         if (this.atrapado) {
-            ctx.filter = 'grayscale(85%) opacity(0.5)';
+            ctx.globalAlpha = 0.4;
         }
 
         if (this.especial) {
-            // Dibujar distintivo para pez especial con icono/emoji central
             ctx.fillStyle = '#ffb703';
             ctx.beginPath();
-            ctx.arc(0, 0, 14, 0, Math.PI * 2);
+            ctx.arc(0, 0, 13, 0, Math.PI * 2);
             ctx.fill();
-            ctx.font = "16px sans-serif";
+            ctx.font = "14px sans-serif";
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             ctx.fillText(this.info.emoji, 0, 1);
         } else {
-            // Aleta Caudal
             ctx.fillStyle = `hsl(${this.hue}, 90%, 45%)`;
             ctx.beginPath();
-            ctx.moveTo(-12, 0);
-            ctx.lineTo(-22, -8 + tailSwing);
-            ctx.quadraticCurveTo(-16, tailSwing, -22, 8 + tailSwing);
+            ctx.moveTo(-10, 0);
+            ctx.lineTo(-20, -7 + tailSwing);
+            ctx.quadraticCurveTo(-14, tailSwing, -20, 7 + tailSwing);
             ctx.closePath();
             ctx.fill();
 
-            // Cuerpo del pez
             ctx.fillStyle = `hsl(${this.hue}, 85%, 55%)`;
             ctx.beginPath();
-            ctx.moveTo(15, 0);
-            ctx.bezierCurveTo(5, -10, -10, -8, -14, 0);
-            ctx.bezierCurveTo(-10, 8, 5, 10, 15, 0);
+            ctx.moveTo(14, 0);
+            ctx.bezierCurveTo(4, -9, -9, -7, -12, 0);
+            ctx.bezierCurveTo(-9, 7, 4, 9, 14, 0);
             ctx.closePath();
             ctx.fill();
 
-            // Ojo
             ctx.fillStyle = '#ffffff';
             ctx.beginPath();
-            ctx.arc(9, -3, 2.5, 0, Math.PI * 2);
+            ctx.arc(8, -2.5, 2.2, 0, Math.PI * 2);
             ctx.fill();
             ctx.fillStyle = '#000000';
             ctx.beginPath();
-            ctx.arc(9.8, -3, 1.2, 0, Math.PI * 2);
+            ctx.arc(8.6, -2.5, 1, 0, Math.PI * 2);
             ctx.fill();
         }
 
@@ -283,21 +470,26 @@ class TiburonVectorial {
         this.vx = (Math.random() - 0.5) * 2;
         this.vy = (Math.random() - 0.5) * 2;
         this.maxSpeed = 2.2;
-        this.energia = 180;
         this.tailPhase = Math.random() * Math.PI * 2;
     }
 
-    actualizar(pecesLista) {
+    actualizar(pecesLista, buzosLista) {
         this.x += this.vx;
         this.y += this.vy;
-        this.energia -= 0.06;
 
         if (this.x < 50) this.vx += 0.15;
         if (this.x > canvas.width - 50) this.vx -= 0.15;
         if (this.y < 50) this.vy += 0.15;
         if (this.y > canvas.height - 60) this.vy -= 0.15;
 
-        // Cazar peces libres
+        for (let buzo of buzosLista) {
+            let distBuzo = Math.hypot(this.x - buzo.x, this.y - buzo.y);
+            if (distBuzo < 200) {
+                this.vx += (this.x - buzo.x) / distBuzo * 0.25;
+                this.vy += (this.y - buzo.y) / distBuzo * 0.25;
+            }
+        }
+
         let pecesLibres = pecesLista.filter(p => !p.atrapado);
         if (pecesLibres.length > 0) {
             let presa = pecesLibres.reduce((prev, curr) => 
@@ -309,11 +501,9 @@ class TiburonVectorial {
                 this.vy += (presa.y - this.y) / distPresa * 0.16;
 
                 if (distPresa < 18) {
-                    this.energia = Math.min(220, this.energia + 60);
                     let index = pecesLista.indexOf(presa);
                     if (index > -1) {
                         pecesLista.splice(index, 1);
-                        // Reemplazar pez cazado para mantener equilibrio
                         pecesLista.push(new PezVectorial(Math.random() * canvas.width, Math.random() * canvas.height));
                     }
                 }
@@ -336,7 +526,6 @@ class TiburonVectorial {
         ctx.translate(this.x, this.y);
         ctx.rotate(angle);
 
-        // Aleta Caudal
         ctx.fillStyle = '#3a4b5c';
         ctx.beginPath();
         ctx.moveTo(-28, 0);
@@ -345,7 +534,6 @@ class TiburonVectorial {
         ctx.closePath();
         ctx.fill();
 
-        // Aleta Dorsal
         ctx.beginPath();
         ctx.moveTo(-2, -12);
         ctx.quadraticCurveTo(-12, -30, -22, -22);
@@ -353,7 +541,6 @@ class TiburonVectorial {
         ctx.closePath();
         ctx.fill();
 
-        // Cuerpo Principal
         ctx.fillStyle = '#4f6378';
         ctx.beginPath();
         ctx.moveTo(35, 0);
@@ -362,7 +549,6 @@ class TiburonVectorial {
         ctx.closePath();
         ctx.fill();
 
-        // Vientre Claro
         ctx.fillStyle = '#bfcedb';
         ctx.beginPath();
         ctx.moveTo(35, 0);
@@ -371,7 +557,6 @@ class TiburonVectorial {
         ctx.closePath();
         ctx.fill();
 
-        // Ojo
         ctx.fillStyle = '#111111';
         ctx.beginPath();
         ctx.arc(22, -4, 2.5, 0, Math.PI * 2);
@@ -386,99 +571,132 @@ class TiburonVectorial {
 // ==========================================
 
 function comenzarJuego() {
-    ajustarCanvas();
-    generarFondoCorales();
-    crearDuctoDañado();
+    const inicioEl = document.getElementById("inicio");
+    if (inicioEl) inicioEl.style.display = "none";
     
-    document.getElementById("inicio").style.display = "none";
+    ajustarCanvas();
+    initWebGL();
+    generarFondoCorales();
+    
+    ductos.push(new DuctoDañado(Math.random() * (canvas.width - 150) + 75));
+    
     juegoIniciado = true;
 
-    // Crear agentes iniciales
     for (let i = 0; i < 22; i++) {
         peces.push(new PezVectorial(Math.random() * canvas.width, Math.random() * canvas.height));
     }
     for (let i = 0; i < 2; i++) {
         tiburones.push(new TiburonVectorial(Math.random() * canvas.width, Math.random() * canvas.height));
     }
+    for (let i = 0; i < 2; i++) {
+        buzos.push(new BuzoVectorial(Math.random() * canvas.width, Math.random() * canvas.height));
+    }
     for (let i = 0; i < 25; i++) {
         planctons.push(new Plancton());
     }
 
-    // Generar basura periódicamente
     setInterval(function () {
-        if (juegoIniciado) crearBasura();
-    }, 2000);
+        if (juegoIniciado && basuras.length < 18) {
+            basuras.push(new BasuraVectorial());
+        }
+    }, 2500);
 
-    // Bucle principal de animación
-    animar();
+    setInterval(function () {
+        if (juegoIniciado && ductos.length > 0) {
+            ductos.forEach(d => {
+                basuras.push(new BasuraVectorial(d.x + (Math.random() * 40 - 20), d.y - 20));
+            });
+        }
+    }, 4000);
+
+    setInterval(function () {
+        if (juegoIniciado && buzos.length < 3) {
+            buzos.push(new BuzoVectorial(Math.random() * canvas.width, 50));
+            mostrarMensaje("⚠️ ¡Un buzo cazador ha entrado al océano!");
+        }
+    }, 15000);
+
+    animar(0);
 }
 
 // ==========================================
-// CREAR BASURA (Elementos DOM Interactivos)
+// INTERACCIÓN DE CLIC
 // ==========================================
 
-function crearBasura() {
-    const cantidad = document.querySelectorAll(".basuraObjeto").length;
-    if (cantidad >= 20) return;
+canvas.addEventListener('click', (e) => {
+    if (!juegoIniciado) return;
 
-    const objetos = [
-        "imagenes/bolsa.png",
-        "imagenes/botella.png",
-        "imagenes/lata.png",
-        "imagenes/red.png"
-    ];
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
 
-    const basura = document.createElement("div");
-    basura.className = "basuraObjeto";
-
-    const imagenBasura = objetos[Math.floor(Math.random() * objetos.length)];
-    basura.innerHTML = `<img src="${imagenBasura}" class="imagenBasura" alt="Contaminante">`;
-
-    const ancho = oceano.clientWidth;
-    const alto = oceano.clientHeight;
-
-    let posX = Math.random() * (ancho - 60);
-    let posY = Math.random() * (alto - 180) + 20;
-
-    basura.style.left = posX + "px";
-    basura.style.top = posY + "px";
-
-    basura.addEventListener("click", function (e) {
-        e.stopPropagation();
-        liberarPezCercano(posX, posY);
-        basura.remove();
-
-        basuraRetirada++;
-        puntos += 10;
-        actualizarHUD();
-        mostrarMensaje("🗑️ ¡Basura retirada! +10 ⭐");
+    let buzoEliminado = false;
+    buzos.forEach((buzo, index) => {
+        let dist = Math.hypot(mouseX - buzo.x, mouseY - buzo.y);
+        if (dist < 28) {
+            buzoEliminado = true;
+            buzos.splice(index, 1);
+            puntos += 30;
+            actualizarHUD();
+            mostrarMensaje("🤿 ¡Buzo cazador alejado! +30 ⭐");
+        }
     });
+    if (buzoEliminado) return;
 
-    oceano.appendChild(basura);
-}
+    let ductoClickeado = false;
+    ductos.forEach((ducto, index) => {
+        let dist = Math.hypot(mouseX - ducto.x, mouseY - ducto.y);
+        if (dist < 35) {
+            ductoClickeado = true;
+            ducto.clicsRestantes--;
+            if (ducto.clicsRestantes > 0) {
+                mostrarMensaje(`⚠️ ¡Reparando derrame! Faltan ${ducto.clicsRestantes} clics.`);
+            } else {
+                ductos.splice(index, 1);
+                puntos += 100;
+                actualizarHUD();
+                mostrarMensaje("✅ ¡Ducto sellado con éxito! +100 ⭐");
+            }
+        }
+    });
+    if (ductoClickeado) return;
+
+    let basuraEliminada = false;
+    basuras.forEach((basura, index) => {
+        let dist = Math.hypot(mouseX - basura.x, mouseY - basura.y);
+        if (dist < 28) {
+            basuraEliminada = true;
+            liberarPezCercano(basura.x, basura.y);
+            basuras.splice(index, 1);
+
+            basuraRetirada++;
+            puntos += 10;
+            actualizarHUD();
+            mostrarMensaje("🗑️ ¡Basura retirada! +10 ⭐");
+        }
+    });
+    if (basuraEliminada) return;
+
+    for (let i = 0; i < 8; i++) {
+        let offsetX = (Math.random() - 0.5) * 40;
+        let offsetY = (Math.random() - 0.5) * 40;
+        planctons.push(new Plancton(mouseX + offsetX, mouseY + offsetY));
+    }
+});
 
 // ==========================================
-// COMPROBAR COLISIONES (Peces con Basura)
+// COMPROBAR COLISIONES
 // ==========================================
 
 setInterval(function () {
     if (!juegoIniciado) return;
 
-    const basuras = document.querySelectorAll(".basuraObjeto");
-
     peces.forEach(function (pez) {
         if (pez.atrapado) return;
 
         basuras.forEach(function (basura) {
-            const bRect = basura.getBoundingClientRect();
-            const oRect = oceano.getBoundingClientRect();
-
-            // Posición relativa dentro del océano
-            let bX = bRect.left - oRect.left + bRect.width / 2;
-            let bY = bRect.top - oRect.top + bRect.height / 2;
-
-            let dist = Math.hypot(pez.x - bX, pez.y - bY);
-            if (dist < 28) {
+            let dist = Math.hypot(pez.x - basura.x, pez.y - basura.y);
+            if (dist < 25) {
                 pez.atrapado = true;
                 mostrarMensaje("😢 ¡Un pez quedó atrapado en la basura!");
             }
@@ -487,7 +705,7 @@ setInterval(function () {
 }, 150);
 
 // ==========================================
-// LIBERAR PEZ AL RETIRAR BASURA
+// LIBERAR PEZ
 // ==========================================
 
 function liberarPezCercano(bx, by) {
@@ -514,101 +732,55 @@ function liberarPezCercano(bx, by) {
 }
 
 // ==========================================
-// DUCTO PETROLERO DAÑADO
-// ==========================================
-
-function crearDuctoDañado() {
-    const ducto = document.createElement("div");
-    ducto.className = "ductoDañado";
-    ducto.innerHTML = "🛢️";
-    ducto.style.bottom = "20px";
-    ducto.style.left = (Math.random() * (oceano.clientWidth - 100)) + "px";
-
-    let clicsParaReparar = 3;
-
-    ducto.addEventListener("click", function (e) {
-        e.stopPropagation();
-        clicsParaReparar--;
-
-        if (clicsParaReparar > 0) {
-            mostrarMensaje(`⚠️ ¡Reparando derrame! Faltan ${clicsParaReparar} clics.`);
-        } else {
-            ducto.remove();
-            puntos += 100;
-            actualizarHUD();
-            mostrarMensaje("✅ ¡Ducto sellado! Evitaste el derrame. +100 ⭐");
-        }
-    });
-
-    const intervaloFuga = setInterval(function () {
-        if (!ducto.isConnected) {
-            clearInterval(intervaloFuga);
-            return;
-        }
-        crearBasura();
-    }, 5000);
-
-    oceano.appendChild(ducto);
-}
-
-// ==========================================
-// INTERACCIÓN CLIC EN EL OCÉANO (Plancton / Alimento)
-// ==========================================
-
-window.addEventListener('click', (e) => {
-    if (!juegoIniciado) return;
-    if (e.target.closest('#ui-panel') || e.target.closest('header') || e.target.closest('#infoEspecial')) return;
-
-    // Añadir plancton al hacer clic en el lienzo del océano
-    const rect = oceano.getBoundingClientRect();
-    if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
-        for (let i = 0; i < 8; i++) {
-            let offsetX = (Math.random() - 0.5) * 40;
-            let offsetY = (Math.random() - 0.5) * 40;
-            planctons.push(new Plancton(e.clientX - rect.left + offsetX, e.clientY - rect.top + offsetY));
-        }
-    }
-});
-
-// ==========================================
 // BUCLE PRINCIPAL DE ANIMACIÓN
 // ==========================================
 
-function animar() {
+function animar(timestamp) {
     if (!juegoIniciado) return;
+
+    if (gl) {
+        renderShader(timestamp);
+    }
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Dibujar fondo fractal precargado
     ctx.drawImage(fondoCanvas, 0, 0);
 
-    // Actualizar y dibujar Plancton
     for (let p of planctons) {
         p.actualizar();
         p.dibujar();
     }
 
-    // Actualizar y dibujar Peces Vectoriales
+    for (let b of basuras) {
+        b.actualizar();
+        b.dibujar();
+    }
+
+    for (let d of ductos) {
+        d.dibujar();
+    }
+
+    for (let buzo of buzos) {
+        buzo.actualizar(tiburones);
+        buzo.dibujar();
+    }
+
     for (let pez of peces) {
-        pez.comportamientos(peces, planctons, tiburones);
         pez.actualizar(peces, planctons, tiburones);
         pez.dibujar();
     }
 
-    // Actualizar y dibujar Tiburones Vectoriales
     for (let tiburon of tiburones) {
-        tiburon.actualizar(peces);
+        tiburon.actualizar(peces, buzos);
         tiburon.dibujar();
     }
 
-    // Generación automática de plancton si está activa
     if (autoGeneracion) {
-        if (planctons.length < 30 && Math.random() < 0.1) {
+        if (planctons.length < 35 && Math.random() < 0.12) {
             planctons.push(new Plancton());
         }
     }
 
-    // Mantener población mínima de peces
     if (peces.length < 15) {
         peces.push(new PezVectorial(Math.random() * canvas.width, Math.random() * canvas.height));
     }
@@ -621,13 +793,17 @@ function animar() {
 // ==========================================
 
 function actualizarHUD() {
-    document.getElementById("rescatados").textContent = pecesRescatados;
-    document.getElementById("basura").textContent = basuraRetirada;
-    document.getElementById("puntos").textContent = puntos;
+    const rEl = document.getElementById("rescatados");
+    const bEl = document.getElementById("basura");
+    const pEl = document.getElementById("puntos");
+    if (rEl) rEl.textContent = pecesRescatados;
+    if (bEl) bEl.textContent = basuraRetirada;
+    if (pEl) pEl.textContent = puntos;
 }
 
 function mostrarMensaje(texto) {
     const mensaje = document.getElementById("mensaje");
+    if (!mensaje) return;
     mensaje.textContent = texto;
     mensaje.style.display = "block";
 
@@ -638,14 +814,20 @@ function mostrarMensaje(texto) {
 }
 
 function mostrarInformacion(info) {
-    document.getElementById("infoEmoji").textContent = info.emoji;
-    document.getElementById("infoTitulo").textContent = info.nombre;
-    document.getElementById("infoTexto").textContent = info.texto;
-    document.getElementById("infoDato").textContent = info.dato;
+    const emojiEl = document.getElementById("infoEmoji");
+    const tituloEl = document.getElementById("infoTitulo");
+    const textoEl = document.getElementById("infoTexto");
+    const datoEl = document.getElementById("infoDato");
+    const especialEl = document.getElementById("infoEspecial");
 
-    document.getElementById("infoEspecial").style.display = "flex";
+    if (emojiEl) emojiEl.textContent = info.emoji;
+    if (tituloEl) tituloEl.textContent = info.nombre;
+    if (textoEl) textoEl.textContent = info.texto;
+    if (datoEl) datoEl.textContent = info.dato;
+    if (especialEl) especialEl.style.display = "flex";
 }
 
 function cerrarInformacion() {
-    document.getElementById("infoEspecial").style.display = "none";
+    const especialEl = document.getElementById("infoEspecial");
+    if (especialEl) especialEl.style.display = "none";
 }
