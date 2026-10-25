@@ -1,36 +1,55 @@
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rescate del Océano</title>
+    <title>Rescate del Océano: Ecosistema Vectorial</title>
     <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
 
     <header>
         <h1>🌊 Rescate del Océano</h1>
         <div class="estadisticas">
-            <span>🐟 Peces: <b id="rescatados">0</b></span>
-            <span>🗑️ Basura retirada: <b id="basura">0</b></span>
+            <span>🐟 Peces Rescatados: <b id="rescatados">0</b></span>
+            <span>🗑️ Basura Retirada: <b id="basura">0</b></span>
             <span>⭐ Puntos: <b id="puntos">0</b></span>
         </div>
     </header>
 
+    <!-- PANEL DE CONTROL E INTERRUPTOR DE PLANCTON -->
+    <div id="ui-panel">
+        <div class="controls">
+            <span>🌿 Plancton Auto:</span>
+            <label class="switch-container">
+                <span id="mode-label" style="font-weight: bold; color: #00c8ff;">Auto</span>
+                <div class="switch">
+                    <input type="checkbox" id="autoPlanctonToggle" checked>
+                    <span class="slider"></span>
+                </div>
+            </label>
+        </div>
+        <div class="help-text">💡 Clic en el agua para añadir plancton o limpiar basura.</div>
+    </div>
+
     <div id="oceano">
         <div id="zonaRescate">🏥 ZONA SEGURA</div>
         <div id="mensaje"></div>
+        <canvas id="canvas"></canvas>
     </div>
 
+    <!-- PANTALLA DE INICIO -->
     <div id="inicio">
-        <h2>🌊 Rescate del Océano 🐠</h2>
-        <p>
-            Ayuda a los peces atrapados por la basura.
-            Haz clic en la basura para retirarla y liberar a la fauna marina.
-        </p>
-        <button onclick="comenzarJuego()">🚀 Comenzar</button>
+        <div class="inicioContenido">
+            <h2>🌊 Rescate del Océano 🐠</h2>
+            <p>
+                Un ecosistema marino vivo impulsado por inteligencia artificial y agentes vectoriales.<br><br>
+                • Alimenta a los peces con <b>plancton</b>.<br>
+                • Cuidado con los <b>tiburones</b>.<br>
+                • Retira la <b>basura</b> para liberar peces atrapados y sella los ductos dañados.
+            </p>
+            <button onclick="comenzarJuego()">🚀 Comenzar Aventura</button>
+        </div>
     </div>
 
     <!-- CUADRO DE INFORMACIÓN Y CONCIENCIA MARINA -->
@@ -47,5 +66,4 @@
 
     <script src="script.js"></script>
 </body>
-
 </html>
