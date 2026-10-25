@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rescate del Océano: Ecosistema Vectorial</title>
+    <title>Rescate del Océano: Ecosistema con Shader WebGL</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -33,9 +33,12 @@
     </div>
 
     <div id="oceano">
+        <!-- CANVAS PARA EL SHADER DE AGUA REALISTA EN WEBGL -->
+        <canvas id="canvasShader"></canvas>
+        <!-- CANVAS PARA LOS AGENTES VECTORIALES E INTERACCIÓN -->
+        <canvas id="canvas"></canvas>
         <div id="zonaRescate">🏥 ZONA SEGURA</div>
         <div id="mensaje"></div>
-        <canvas id="canvas"></canvas>
     </div>
 
     <!-- PANTALLA DE INICIO -->
@@ -43,10 +46,10 @@
         <div class="inicioContenido">
             <h2>🌊 Rescate del Océano 🐠</h2>
             <p>
-                Un ecosistema marino vivo impulsado por inteligencia artificial y agentes vectoriales.<br><br>
+                Un ecosistema marino vivo 100% vectorial con física cáustica de agua WebGL.<br><br>
                 • Alimenta a los peces con <b>plancton</b>.<br>
-                • Cuidado con los <b>tiburones</b>.<br>
-                • Retira la <b>basura</b> para liberar peces atrapados y sella los ductos dañados.
+                • Protege a los <b>tiburones</b> de los <b>buzos cazadores 🤿</b>.<br>
+                • Retira la <b>basura</b> y sella los <b>ductos dañados 🛢️</b>.
             </p>
             <button onclick="comenzarJuego()">🚀 Comenzar Aventura</button>
         </div>
