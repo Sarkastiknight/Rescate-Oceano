@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rescate del Océano: Ecosistema con Shader WebGL</title>
+    <title>Rescate del Océano: Ecosistema Vectorial</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -14,13 +14,14 @@
             <span>🐟 Peces Rescatados: <b id="rescatados">0</b></span>
             <span>🗑️ Basura Retirada: <b id="basura">0</b></span>
             <span>⭐ Puntos: <b id="puntos">0</b></span>
+            <span>📈 Nivel: <b id="nivel">1</b></span>
         </div>
     </header>
 
-    <!-- PANEL DE CONTROL E INTERRUPTOR DE PLANCTON -->
+    <!-- PANEL DE CONTROL -->
     <div id="ui-panel">
         <div class="controls">
-            <span>🌿 Plancton Auto:</span>
+            <span>🌿 Plancton:</span>
             <label class="switch-container">
                 <span id="mode-label" style="font-weight: bold; color: #00c8ff;">Auto</span>
                 <div class="switch">
@@ -29,16 +30,17 @@
                 </div>
             </label>
         </div>
-        <div class="help-text">💡 Clic en el agua para añadir plancton o limpiar basura.</div>
+        <div class="panel-actions">
+            <button type="button" id="btnPausa" class="btn-secundario" onclick="alternarPausa()">⏸️ Pausar</button>
+            <button type="button" id="btnReiniciar" class="btn-secundario" onclick="reiniciarJuego()">🔄 Reiniciar</button>
+        </div>
+        <div class="help-text">💡 Clic en el agua: plancton · Clic en basura/buzos/ductos: rescatar.</div>
     </div>
 
     <div id="oceano">
-        <!-- CANVAS PARA EL SHADER DE AGUA REALISTA EN WEBGL -->
-        <canvas id="canvasShader"></canvas>
-        <!-- CANVAS PARA LOS AGENTES VECTORIALES E INTERACCIÓN -->
-        <canvas id="canvas"></canvas>
         <div id="zonaRescate">🏥 ZONA SEGURA</div>
         <div id="mensaje"></div>
+        <canvas id="canvas"></canvas>
     </div>
 
     <!-- PANTALLA DE INICIO -->
@@ -46,24 +48,25 @@
         <div class="inicioContenido">
             <h2>🌊 Rescate del Océano 🐠</h2>
             <p>
-                Un ecosistema marino vivo 100% vectorial con física cáustica de agua WebGL.<br><br>
-                • Alimenta a los peces con <b>plancton</b>.<br>
-                • Protege a los <b>tiburones</b> de los <b>buzos cazadores 🤿</b>.<br>
-                • Retira la <b>basura</b> y sella los <b>ductos dañados 🛢️</b>.
+                Un ecosistema marino 100% vectorial con agentes autónomos.<br><br>
+                • Alimenta a los peces con <b>plancton</b> (auto o clic en el agua).<br>
+                • Retira la <b>basura</b> para liberar peces atrapados (+10 / +50 pts).<br>
+                • Haz clic en los <b>buzos cazadores</b> para alejarlos (+30 pts).<br>
+                • Haz <b>3 clics</b> en los <b>ductos dañados</b> para sellarlos (+100 pts).
             </p>
-            <button onclick="comenzarJuego()">🚀 Comenzar Aventura</button>
+            <button type="button" onclick="comenzarJuego()">🚀 Comenzar Aventura</button>
         </div>
     </div>
 
     <!-- CUADRO DE INFORMACIÓN Y CONCIENCIA MARINA -->
     <div id="infoEspecial" style="display: none;">
         <div class="infoContenido">
-            <button id="cerrarInfo" onclick="cerrarInformacion()">✕</button>
+            <button type="button" id="cerrarInfo" onclick="cerrarInformacion()">✕</button>
             <div id="infoEmoji">🐬</div>
             <h2 id="infoTitulo">Delfín</h2>
             <p id="infoTexto">Información animal.</p>
             <div id="infoDato" class="alertaConciencia"></div>
-            <button class="botonContinuar" onclick="cerrarInformacion()">🌊 Continuar jugando</button>
+            <button type="button" class="botonContinuar" onclick="cerrarInformacion()">🌊 Continuar jugando</button>
         </div>
     </div>
 
