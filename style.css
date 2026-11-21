@@ -21,39 +21,42 @@ header {
     align-items: center;
     padding: 10px 20px;
     background: rgba(5, 15, 40, 0.95);
-    box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
     position: relative;
     z-index: 200;
     height: 55px;
+    gap: 12px;
+    flex-wrap: wrap;
 }
 
 header h1 {
     margin: 0;
-    font-size: 1.4rem;
+    font-size: 1.35rem;
 }
 
 .estadisticas span {
-    margin-left: 20px;
-    font-size: 1rem;
+    margin-left: 16px;
+    font-size: 0.95rem;
 }
 
-/* Panel flotante de control de Plancton */
+/* Panel flotante de control */
 #ui-panel {
     position: absolute;
-    top: 65px;
+    top: 70px;
     left: 20px;
     color: white;
     font-size: 13px;
-    background: rgba(5, 15, 40, 0.85);
+    background: rgba(5, 15, 40, 0.88);
     backdrop-filter: blur(8px);
-    padding: 10px 15px;
-    border-radius: 10px;
+    padding: 12px 15px;
+    border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.15);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.45);
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 10px;
     z-index: 150;
+    max-width: 245px;
 }
 
 .controls {
@@ -63,6 +66,27 @@ header h1 {
     gap: 12px;
 }
 
+.panel-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-secundario {
+    flex: 1;
+    padding: 7px 10px;
+    font-size: 0.82rem;
+    background: rgba(0, 180, 216, 0.22);
+    border: 1px solid rgba(0, 180, 216, 0.45);
+    color: #e0fbfc;
+    border-radius: 7px;
+}
+
+.btn-secundario:hover {
+    background: #00b4d8;
+    color: #001219;
+    transform: translateY(-1px);
+}
+
 /* Interruptor Toggle Moderno */
 .switch-container {
     display: flex;
@@ -70,25 +94,32 @@ header h1 {
     gap: 6px;
     cursor: pointer;
 }
+
 .switch {
     position: relative;
     display: inline-block;
     width: 38px;
     height: 20px;
 }
+
 .switch input {
     opacity: 0;
     width: 0;
     height: 0;
 }
+
 .slider {
     position: absolute;
     cursor: pointer;
-    top: 0; left: 0; right: 0; bottom: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     background-color: #3a4b5c;
-    transition: .3s;
+    transition: 0.3s;
     border-radius: 20px;
 }
+
 .slider:before {
     position: absolute;
     content: "";
@@ -97,18 +128,22 @@ header h1 {
     left: 3px;
     bottom: 3px;
     background-color: white;
-    transition: .3s;
+    transition: 0.3s;
     border-radius: 50%;
 }
+
 input:checked + .slider {
     background-color: #00c8ff;
 }
+
 input:checked + .slider:before {
     transform: translateX(18px);
 }
+
 .help-text {
     font-size: 11px;
-    opacity: 0.75;
+    opacity: 0.8;
+    line-height: 1.35;
 }
 
 #oceano {
@@ -119,18 +154,6 @@ input:checked + .slider:before {
     overflow: hidden;
 }
 
-/* Shader WebGL (Fondo fotorrealista de agua) */
-#canvasShader {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 1;
-    pointer-events: none;
-}
-
-/* Lienzo de interacción y vectores */
 #canvas {
     position: absolute;
     top: 0;
@@ -138,7 +161,7 @@ input:checked + .slider:before {
     width: 100%;
     height: 100%;
     display: block;
-    z-index: 2;
+    cursor: crosshair;
 }
 
 #zonaRescate {
@@ -146,7 +169,8 @@ input:checked + .slider:before {
     top: 15px;
     right: 15px;
     padding: 8px 14px;
-    background: rgba(40, 167, 69, 0.7);
+    background: rgba(40, 167, 69, 0.72);
+    border: 1px solid rgba(144, 238, 144, 0.35);
     border-radius: 8px;
     font-weight: bold;
     font-size: 0.9rem;
@@ -159,15 +183,16 @@ input:checked + .slider:before {
     top: 20px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.85);
-    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(0, 0, 0, 0.88);
+    border: 1px solid rgba(144, 224, 239, 0.35);
     padding: 10px 20px;
     border-radius: 20px;
     display: none;
     z-index: 100;
     font-weight: bold;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
     pointer-events: none;
+    white-space: nowrap;
 }
 
 /* ==========================================
@@ -188,11 +213,12 @@ input:checked + .slider:before {
 
 .infoContenido, .inicioContenido {
     background: #002b49;
-    border: 1px solid rgba(0, 180, 216, 0.4);
+    border: 1px solid rgba(0, 180, 216, 0.45);
     padding: 30px;
     border-radius: 14px;
     text-align: center;
     max-width: 460px;
+    width: 90%;
     box-shadow: 0 0 30px rgba(0, 180, 216, 0.3);
 }
 
@@ -202,9 +228,9 @@ input:checked + .slider:before {
 }
 
 .inicioContenido p {
-    line-height: 1.5;
+    line-height: 1.55;
     color: #e0fbfc;
-    margin-bottom: 25px;
+    margin-bottom: 24px;
     text-align: left;
 }
 
@@ -246,7 +272,8 @@ button:hover {
     border-radius: 50%;
     cursor: pointer;
 }
+
 #cerrarInfo:hover {
-    background: rgba(255,255,255,0.2);
+    background: rgba(255, 255, 255, 0.2);
     color: #fff;
 }
